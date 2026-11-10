@@ -1,0 +1,26 @@
+{
+  "company": "Acme Supply Co.",
+  "senderName": "Alex Morgan",
+  "signature": "Alex Morgan\nAcme Supply Co. | acmesupply.example",
+  "positioning": "specializing in single-origin beans and wholesale supply",
+  "context": [
+    "Specialty coffee and food ingredients, sold online",
+    "Educational blog covering sourcing, roasting and brewing",
+    "B2B wholesale for cafes, grocers and distributors"
+  ],
+  "allowedLinks": [
+    "https://acmesupply.example/shop",
+    "https://acmesupply.example/blog",
+    "https://acmesupply.example/wholesale"
+  ],
+  "contentRules": [
+    "Do NOT make health, legal or regulatory claims",
+    "Do NOT promise shipping times or delivery coverage"
+  ],
+  "ownDomains": ["acmesupply.example"],
+  "competitors": [
+    { "domain": "competitor-one.example", "name": "Competitor One" },
+    { "domain": "competitor-two.example", "name": "Competitor Two" },
+    { "domain": "competitor-three.example", "name": "Competitor Three" }
+  ]
+}

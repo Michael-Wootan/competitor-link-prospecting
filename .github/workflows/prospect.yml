@@ -1,0 +1,98 @@
+name: Competitor Link Prospecting
+
+on:
+  schedule:
+    - cron: '0 14 * * 4'      # Thursday 14:00 UTC: discover new opportunities
+    - cron: '30 15 * * 1-5'   # Weekdays 15:30 UTC: send a batch of pending pitches
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'discover = new backlinks only | initial = full first sweep | send = send pending pitches'
+        required: true
+        default: 'discover'
+        type: choice
+        options:
+          - discover
+          - initial
+          - send
+
+concurrency:
+  group: outreach-state
+  cancel-in-progress: false
+
+jobs:
+  run:
+    # Scheduled runs are off until the repository variable ENABLE_SCHEDULE is 'true',
+    # so a fresh fork or an unconfigured copy never runs (or fails) on its own.
+    if: github.event_name == 'workflow_dispatch' || vars.ENABLE_SCHEDULE == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      # config/campaign.json is gitignored; CI writes it from a repository variable
+      - name: Write campaign config
+        env:
+          CAMPAIGN_JSON: ${{ vars.CAMPAIGN_JSON }}
+        run: |
+          if [ -n "$CAMPAIGN_JSON" ]; then printf '%s' "$CAMPAIGN_JSON" > config/campaign.json; fi
+
+      # State MUST persist between runs. Without it every discover run repeats
+      # a full Ahrefs sweep (which burns the monthly unit quota) and send mode
+      # never sees the drafted pitches. It holds real contacts, so it travels
+      # in the Actions cache and is never committed.
+      - name: Restore outreach state
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: outreach-state-${{ github.run_id }}
+          restore-keys: |
+            outreach-state-
+
+      - name: Determine mode
+        id: mode
+        run: |
+          if [ -n "${{ github.event.inputs.mode }}" ]; then
+            echo "mode=${{ github.event.inputs.mode }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "30 15 * * 1-5" ]; then
+            echo "mode=send" >> $GITHUB_OUTPUT
+          else
+            echo "mode=discover" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run competitor link prospecting
+        run: |
+          MODE="${{ steps.mode.outputs.mode }}"
+          echo "Running in $MODE mode"
+          if [ "$MODE" = "send" ]; then
+            node src/prospect.js --send
+          elif [ "$MODE" = "initial" ]; then
+            node src/prospect.js --initial --limit 20
+          else
+            node src/prospect.js --limit 10
+          fi
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AHREFS_API_TOKEN: ${{ secrets.AHREFS_API_TOKEN }}
+          OUTREACH_SMTP_HOST: ${{ secrets.OUTREACH_SMTP_HOST }}
+          OUTREACH_SMTP_PORT: ${{ secrets.OUTREACH_SMTP_PORT }}
+          OUTREACH_SMTP_USER: ${{ secrets.OUTREACH_SMTP_USER }}
+          OUTREACH_SMTP_PASS: ${{ secrets.OUTREACH_SMTP_PASS }}
+          OUTREACH_FROM_EMAIL: ${{ secrets.OUTREACH_FROM_EMAIL }}
+          SENDER_NAME: ${{ vars.SENDER_NAME }}
+          SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
+
+      - name: Save outreach state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: outreach-state-${{ github.run_id }}

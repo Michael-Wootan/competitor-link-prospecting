@@ -1,0 +1,19 @@
+{
+  "name": "competitor-link-prospecting",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Weekly discovery of sites that link to competitors, pitches drafted into a review queue and sent in weekday batches. Discovery and sending run as separate modes to protect API quota.",
+  "main": "src/prospect.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "discover": "node src/prospect.js",
+    "dry-run": "node src/prospect.js --dry-run",
+    "send": "node src/prospect.js --send",
+    "test": "node scripts/test-validation.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
+    "dotenv": "^17.3.1",
+    "nodemailer": "^8.0.11"
+  }
+}
